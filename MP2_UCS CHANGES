@@ -1,0 +1,1485 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "collapsed_sections": [
+        "EEhu5OWVw7s_"
+      ],
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/gbardaklis/Mini-Project-2/blob/main/MP2_UCS%20CHANGES\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import copy\n",
+        "import time\n",
+        "import bisect"
+      ],
+      "metadata": {
+        "id": "vS6hGndDCDZ0"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Position Class "
+      ],
+      "metadata": {
+        "id": "J0wY0tLJmLRs"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class Position():\n",
+        "  def __init__(self, posX, posY):\n",
+        "    self.posX = posX\n",
+        "    self.posY = posY\n",
+        "  \n",
+        "  def __str__(self):\n",
+        "    return f\"({str(self.posX)},{str(self.posY)})\" "
+      ],
+      "metadata": {
+        "id": "lh-58WkTmIBM"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Car Class "
+      ],
+      "metadata": {
+        "id": "SynE6VRvehxR"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class Car(object):\n",
+        "  def __init__(self, name, position, fuel = 100, dir = \"v\"):\n",
+        "    self.name = name\n",
+        "    self.fuel = int(fuel)\n",
+        "    self.dir = dir\n",
+        "    self.positions = []\n",
+        "    self.positions.append(position)\n",
+        "\n",
+        "  def getName(self) -> str:\n",
+        "    return self.name; \n",
+        "    \n",
+        "  def isAmbulance(self) -> bool:\n",
+        "    return self.name == 'A'\n",
+        "\n",
+        "  def isName(self, name) -> bool:\n",
+        "    return self.name == name\n",
+        "\n",
+        "  # check if car has enough fuel to move, returns boolean\n",
+        "  def canMove(self) -> bool:\n",
+        "    return self.fuel > 0\n",
+        "\n",
+        "  # may need to be changed\n",
+        "  def moveCarByLength(self, length):\n",
+        "    if (self.direction == \"h\"):\n",
+        "      for car in self.positions:\n",
+        "        car.posY += length\n",
+        "    else:\n",
+        "      for car in self.positions:\n",
+        "        car.posX += length\n",
+        "    self.fuel -= abs(1)\n",
+        "\n",
+        "  def updatePosition(self, updatePosition):\n",
+        "    self.positions.append(updatePosition)\n",
+        "    if self.positions[0].posX == updatePosition.posX and self.positions[0].posY != updatePosition.posY:\n",
+        "      self.direction = \"h\"\n",
+        "    else:\n",
+        "      self.direction = \"v\"\n",
+        "\n",
+        "  def __str__(self) -> str:\n",
+        "    x = self.name + ' | '\n",
+        "    for iter in self.positions: \n",
+        "      x += str(iter)\n",
+        "    return f\" {x} | {self.fuel} | {self.direction}\""
+      ],
+      "metadata": {
+        "id": "KQq7NwE33h-5"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Board Class "
+      ],
+      "metadata": {
+        "id": "RAmQEw6TmLPl"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class Board(object): \n",
+        "  def __init__(self, cars):\n",
+        "    self.cars = []\n",
+        "    self.grid = [['.' for i in range(6)] for j in range(6)]\n",
+        "    self.size = {'X': 6, 'Y': 6}\n",
+        "    for car in cars:\n",
+        "      carHolder = car\n",
+        "      self.cars.append(copy.deepcopy(carHolder))\n",
+        "      # updating grid with the coordinate of the cars\n",
+        "      for position in carHolder.positions:\n",
+        "        # assign the letter at that position\n",
+        "        self.grid[position.posX][position.posY] = car.name\n",
+        "\n",
+        "  def win(self):\n",
+        "    if self.grid[2][5] == 'A':\n",
+        "      return True\n",
+        "    else:\n",
+        "      return False\n",
+        "\n",
+        "  def pathForward(self, car):\n",
+        "    direction = car.direction\n",
+        "    position = car.positions[len(car.positions)-1]\n",
+        "    if direction == 'h':\n",
+        "      head = position.posY\n",
+        "    else:\n",
+        "      head = position.posX\n",
+        "    \n",
+        "    moves = []\n",
+        "    for iter in range(head+1, 6):\n",
+        "      if car.fuel < iter-head:\n",
+        "        continue\n",
+        "      if direction == 'h':\n",
+        "        gridPosition = self.grid[position.posX][iter]\n",
+        "      else:\n",
+        "        gridPosition = self.grid[iter][position.posY]\n",
+        "      if gridPosition == '.':\n",
+        "        moves.append(iter-head)\n",
+        "      else:\n",
+        "        break\n",
+        "    return moves\n",
+        "\n",
+        "  def pathBackward(self, car):\n",
+        "      direction = car.direction\n",
+        "      position = car.positions[0]\n",
+        "      if direction == 'h':\n",
+        "        head = position.posY\n",
+        "      else:\n",
+        "        head = position.posX\n",
+        "      \n",
+        "      moves = []\n",
+        "      for iter in range(head, 0, -1):\n",
+        "        if car.fuel <= head-iter:\n",
+        "          continue\n",
+        "        if direction == 'h':\n",
+        "          gridPosition = self.grid[position.posX][iter-1]\n",
+        "        else:\n",
+        "          gridPosition = self.grid[iter-1][position.posY]\n",
+        "        if gridPosition == '.':\n",
+        "          moves.append(iter-head-1)\n",
+        "        else:\n",
+        "          break\n",
+        "      return moves\n",
+        "\n",
+        "  def findCarMoves(self, car):\n",
+        "    if car.canMove():\n",
+        "      forward = self.pathForward(car)\n",
+        "      backward = self.pathBackward(car)\n",
+        "      path = forward + backward\n",
+        "    else: \n",
+        "      path = []\n",
+        "    return path\n",
+        "\n",
+        "  def moveCar(self, name, length):\n",
+        "    for car in self.cars:\n",
+        "      if car.name == name:\n",
+        "        for position in car.positions:\n",
+        "          self.grid[position.posX][position.posY] = '.'\n",
+        "        car.moveCarByLength(length)\n",
+        "        for position in car.positions:\n",
+        "          self.grid[position.posX][position.posY] = name\n",
+        "\n",
+        "        # car != ambulance reached exit, coord (2,5) h direction, game needs to continue\n",
+        "        if car.name == self.grid[2][5] and car.direction =='h' and car.name != 'A':\n",
+        "          for position in car.positions: \n",
+        "            self.grid[position.posX][position.posY] = '.'\n",
+        "          self.cars.remove(car)\n",
+        "\n",
+        "        direction = \"\"\n",
+        "        if length < 0 and car.direction == 'h':\n",
+        "          direction = 'left'\n",
+        "        if length > 0 and car.direction == 'h':\n",
+        "          direction = 'right'\n",
+        "        if length < 0 and car.direction == 'v':\n",
+        "          direction = 'down'\n",
+        "        if length > 0 and car.direction == 'v':\n",
+        "          direction = 'up'\n",
+        "        return name, direction, length, car.fuel, self.puzzle()\n",
+        "\n",
+        "  # populate grid\n",
+        "  def puzzle(self):\n",
+        "    puzzle = \"\"\n",
+        "    for x in range(6):\n",
+        "      for y in range(6):\n",
+        "        puzzle += self.grid[x][y]\n",
+        "    return puzzle\n",
+        "\n",
+        "  # grid default to string\n",
+        "  def __str__(self): \n",
+        "    puzzle = \"\"\n",
+        "    for x in range(6):\n",
+        "      for y in range(6):\n",
+        "        puzzle += self.grid[x][y]\n",
+        "      puzzle += \"\\n\" \n",
+        "    return puzzle\n",
+        "\n",
+        "  #heuristics\n",
+        "  #h1: number of blocking vehicles\n",
+        "  def h1(self):\n",
+        "    count = 0\n",
+        "    ambulance = self.grid[2]\n",
+        "    for x in range(6):\n",
+        "      if ambulance == 'A':\n",
+        "        continue\n",
+        "      elif ambulance != '.':\n",
+        "        count += 1\n",
+        "    return count\n",
+        "  \n",
+        "  #h2: number of blocking positions\n",
+        "  def h2(self):\n",
+        "    count = 0\n",
+        "    ambulance = self.grid[2]\n",
+        "    for x in range(6):\n",
+        "      if ambulance == 'A':\n",
+        "        continue\n",
+        "      elif ambulance != '.':\n",
+        "        count += 1\n",
+        "    return count\n",
+        "\n",
+        "  #h3: value of h1 multiplied by a constant (lambda)\n",
+        "  def h3(self):\n",
+        "    constant = 3\n",
+        "    return self.h1() * constant\n",
+        "\n",
+        "  #h4: your own admissible heuristic -- distance from ambulance to exit\n",
+        "  def h4(self):\n",
+        "    before = 0\n",
+        "    ambulance = self.grid[2]\n",
+        "    for x in range(6):\n",
+        "      if ambulance != 'A':\n",
+        "        before += 1\n",
+        "    return 4-before"
+      ],
+      "metadata": {
+        "id": "oGWCuHGzPBMV"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# PuzzleParser Class "
+      ],
+      "metadata": {
+        "id": "8m3mgniYxOnO"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class PuzzleParser:\n",
+        "  def createPuzzleList():\n",
+        "      input = open('/content/sample-input.txt', 'r')\n",
+        "      puzzles = []\n",
+        "      for line in input.readlines():\n",
+        "        if not line.startswith('#') and line.strip():\n",
+        "            puzzles.append(line.split(\" \")) \n",
+        "      input.close()\n",
+        "      return puzzles"
+      ],
+      "metadata": {
+        "id": "mkBtTr_Y3i6i"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Testing Game Set Up"
+      ],
+      "metadata": {
+        "id": "A1R0S_mH0zk_"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "puzzler = PuzzleParser\n",
+        "puzzleMap = []\n",
+        "puzzles = puzzler.createPuzzleList();\n",
+        "\n",
+        "for line in puzzles:\n",
+        "  grid = line[0];\n",
+        "  fuelLevel = []\n",
+        "  if len(line) > 1:\n",
+        "    fuelLevel.append(line[1:])\n",
+        "\n",
+        "  cars = []\n",
+        "  for row in range(6):\n",
+        "    for col in range(6):\n",
+        "      current = grid[row*6 + col];\n",
+        "      if current == \".\":\n",
+        "        continue\n",
+        "      isSame = True\n",
+        "      for car in cars:\n",
+        "        if car.isName(current):\n",
+        "          car.updatePosition(Position(row, col))\n",
+        "          isSame = False\n",
+        "      if isSame:\n",
+        "        fuelAmt = 100\n",
+        "        if len(fuelLevel) > 0:\n",
+        "          for fuel in fuelLevel[0]:\n",
+        "            if current == fuel[0]:\n",
+        "              fuelAmt = fuel[1:]\n",
+        "\n",
+        "        cars.append(Car (name = current, position = Position(row,col), fuel = fuelAmt))\n",
+        "\n",
+        "  board = Board(cars)\n",
+        "  print(board)\n",
+        "  for car in cars:\n",
+        "    print(car)\n",
+        "\n",
+        "  print(\"---------------------------------\")\n",
+        "  puzzleMap.append(board)"
+      ],
+      "metadata": {
+        "id": "Jtat4w3y04d1",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "04aa8501-594a-4977-e907-9acc4b10a76d"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "BBIJ..\n",
+            "..IJCC\n",
+            "..IAAM\n",
+            "GDDK.M\n",
+            "GH.KL.\n",
+            "GHFFL.\n",
+            "\n",
+            " B | (0,0)(0,1) | 100 | h\n",
+            " I | (0,2)(1,2)(2,2) | 100 | v\n",
+            " J | (0,3)(1,3) | 100 | v\n",
+            " C | (1,4)(1,5) | 100 | h\n",
+            " A | (2,3)(2,4) | 100 | h\n",
+            " M | (2,5)(3,5) | 100 | v\n",
+            " G | (3,0)(4,0)(5,0) | 100 | v\n",
+            " D | (3,1)(3,2) | 100 | h\n",
+            " K | (3,3)(4,3) | 100 | v\n",
+            " H | (4,1)(5,1) | 100 | v\n",
+            " L | (4,4)(5,4) | 100 | v\n",
+            " F | (5,2)(5,3) | 100 | h\n",
+            "---------------------------------\n",
+            "..I...\n",
+            "BBI.K.\n",
+            "GHAAKL\n",
+            "GHDDKL\n",
+            "G..JEE\n",
+            "FF.J..\n",
+            "\n",
+            " I | (0,2)(1,2) | 100 | v\n",
+            " B | (1,0)(1,1) | 100 | h\n",
+            " K | (1,4)(2,4)(3,4) | 100 | v\n",
+            " G | (2,0)(3,0)(4,0) | 100 | v\n",
+            " H | (2,1)(3,1) | 100 | v\n",
+            " A | (2,2)(2,3) | 100 | h\n",
+            " L | (2,5)(3,5) | 100 | v\n",
+            " D | (3,2)(3,3) | 100 | h\n",
+            " J | (4,3)(5,3) | 100 | v\n",
+            " E | (4,4)(4,5) | 100 | h\n",
+            " F | (5,0)(5,1) | 100 | h\n",
+            "---------------------------------\n",
+            "JBBCCC\n",
+            "JDD..M\n",
+            "JAAL.M\n",
+            "FFKL.N\n",
+            "..KGGN\n",
+            ".HH...\n",
+            "\n",
+            " J | (0,0)(1,0)(2,0) | 100 | v\n",
+            " B | (0,1)(0,2) | 100 | h\n",
+            " C | (0,3)(0,4)(0,5) | 100 | h\n",
+            " D | (1,1)(1,2) | 100 | h\n",
+            " M | (1,5)(2,5) | 100 | v\n",
+            " A | (2,1)(2,2) | 100 | h\n",
+            " L | (2,3)(3,3) | 100 | v\n",
+            " F | (3,0)(3,1) | 100 | h\n",
+            " K | (3,2)(4,2) | 100 | v\n",
+            " N | (3,5)(4,5) | 100 | v\n",
+            " G | (4,3)(4,4) | 100 | h\n",
+            " H | (5,1)(5,2) | 100 | h\n",
+            "---------------------------------\n",
+            "BBB..M\n",
+            "CCDD.M\n",
+            "AAKL.M\n",
+            "J.KLEE\n",
+            "J.GG..\n",
+            "JHHHII\n",
+            "\n",
+            " B | (0,0)(0,1)(0,2) | 4 | h\n",
+            " M | (0,5)(1,5)(2,5) | 100 | v\n",
+            " C | (1,0)(1,1) | 100 | h\n",
+            " D | (1,2)(1,3) | 100 | h\n",
+            " A | (2,0)(2,1) | 100 | h\n",
+            " K | (2,2)(3,2) | 100 | v\n",
+            " L | (2,3)(3,3) | 100 | v\n",
+            " J | (3,0)(4,0)(5,0) | 0 | v\n",
+            " E | (3,4)(3,5) | 100 | h\n",
+            " G | (4,2)(4,3) | 100 | h\n",
+            " H | (5,1)(5,2)(5,3) | 100 | h\n",
+            " I | (5,4)(5,5) | 100 | h\n",
+            "---------------------------------\n",
+            "IJBBCC\n",
+            "IJDDL.\n",
+            "IJAAL.\n",
+            "EEK.L.\n",
+            "..KFF.\n",
+            ".GGHH.\n",
+            "\n",
+            " I | (0,0)(1,0)(2,0) | 100 | v\n",
+            " J | (0,1)(1,1)(2,1) | 100 | v\n",
+            " B | (0,2)(0,3) | 100 | h\n",
+            " C | (0,4)(0,5) | 100 | h\n",
+            " D | (1,2)(1,3) | 100 | h\n",
+            " L | (1,4)(2,4)(3,4) | 100 | v\n",
+            " A | (2,2)(2,3) | 100 | h\n",
+            " E | (3,0)(3,1) | 100 | h\n",
+            " K | (3,2)(4,2) | 100 | v\n",
+            " F | (4,3)(4,4) | 0 | h\n",
+            " G | (5,1)(5,2) | 6 | h\n",
+            " H | (5,3)(5,4) | 100 | h\n",
+            "---------------------------------\n",
+            "BB.G.H\n",
+            "E..G.H\n",
+            "EAAG.I\n",
+            "..FCCI\n",
+            "DDF..I\n",
+            "..F...\n",
+            "\n",
+            " B | (0,0)(0,1) | 100 | h\n",
+            " G | (0,3)(1,3)(2,3) | 100 | v\n",
+            " H | (0,5)(1,5) | 100 | v\n",
+            " E | (1,0)(2,0) | 100 | v\n",
+            " A | (2,1)(2,2) | 100 | h\n",
+            " I | (2,5)(3,5)(4,5) | 100 | v\n",
+            " F | (3,2)(4,2)(5,2) | 100 | v\n",
+            " C | (3,3)(3,4) | 100 | h\n",
+            " D | (4,0)(4,1) | 100 | h\n",
+            "---------------------------------\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Node Classes"
+      ],
+      "metadata": {
+        "id": "9Hj-Kvd4kUiG"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class Node(object):\n",
+        "  def __init__(self, board ,pathcost):\n",
+        "    self.parent = 0\n",
+        "    self.pathcost = pathcost\n",
+        "    self.board = board\n",
+        "    self.path = []\n",
+        "\n",
+        "  def __lessthan__(self, other):\n",
+        "    return self.pcost < other.pcost\n",
+        "\n",
+        "  def __equalto__(self, other):\n",
+        "    return self.board == other.board\n",
+        "\n",
+        "class HNode(object):\n",
+        "  def __init__(self, board, cost, parentCost):\n",
+        "    self.board = board\n",
+        "    self.cost = cost\n",
+        "    self.hCost = 0\n",
+        "    self.path = []\n",
+        "    self.parent = 0\n",
+        "    self.parentCost = parentCost\n",
+        "    self.search = \"\"\n",
+        "\n",
+        "  def __lt__(self, other):\n",
+        "    return self.cost < other.cost\n",
+        "  def __eq__(self, other):\n",
+        "    return self.board == other.board\n",
+        "    \n",
+        "  def setHeuristic(self, h):\n",
+        "    if h == 1:\n",
+        "      self.cost = self.cost + self.board.h1()\n",
+        "    elif h == 2:\n",
+        "      self.cost = self.cost + self.board.h2()\n",
+        "    elif h == 3:\n",
+        "      self.cost = self.cost + self.board.h3()\n",
+        "    elif h == 4:\n",
+        "      self.cost = self.cost + self.board.h4()\n",
+        "      return self.cost\n",
+        "\n",
+        "  def setCost(self, cost):\n",
+        "    self.cost = cost"
+      ],
+      "metadata": {
+        "id": "LALsMAYUDBiV"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "#Uniform Cost Search (UCS)"
+      ],
+      "metadata": {
+        "id": "BjnFt1dWTItd"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#note: h(n) irrelevant for ucs therefore will always be 0\n",
+        "class UCS(object):\n",
+        "  def __init__(self):\n",
+        "    self.openList = []\n",
+        "    self.closedList = []\n",
+        "    self.puzzlenumber = 0\n",
+        "\n",
+        "  def incrementState(self):\n",
+        "    self.puzzlenumber += 1\n",
+        "\n",
+        "  def printNoSolution(self, puzzlenumber):    \n",
+        "    if(len(self.openList)==0):\n",
+        "      solutionfiles.close()\n",
+        "      solutionfiles = open('/content/' + 'ucs-sol-' + str(self.puzzlenumber) + '.txt', 'w')\n",
+        "      solutionfiles.write(f\"Initial board configuration: {str(board.puzzle())} \\n\\n\")\n",
+        "      solutionfiles.write(f\"{str(board)} \\n\")\n",
+        "      solutionfiles.write(f\"Car fuel available: \")\n",
+        "      for iter in range(len(board.cars)): \n",
+        "        solutionfiles.write(f\"{str(board.cars[iter].name)}:{str(board.cars[iter].fuel)}\")\n",
+        "        if iter !=len(board.cars)-1:\n",
+        "          solutionfiles.write(\", \")\n",
+        "      solutionfiles.write(\"No Solution\")\n",
+        "      solutionfiles.close()\n",
+        "      return\n",
+        "\n",
+        "\n",
+        "  def printSol(self, board, startTime, states, selectedNode):\n",
+        "    solutionfiles = open('/content/' + 'ucs-sol-' + str(self.puzzlenumber) + '.txt', 'w')\n",
+        "    solutionfiles.write(f\"Initial board configuration: {str(board.puzzle())} \\n\\n\")\n",
+        "    solutionfiles.write(f\"{str(board)} \\n\")\n",
+        "    solutionfiles.write(f\"Car fuel available: \")\n",
+        "    for iter in range(len(board.cars)): \n",
+        "      # no one cares about removing a coma\n",
+        "      solutionfiles.write(f\"{str(board.cars[iter].name)}:{str(board.cars[iter].fuel)}, \")\n",
+        "    runtime = time.time() - startTime\n",
+        "    solutionfiles.write(f\"\\nRuntime: {str(runtime)} seconds \\n\")\n",
+        "    solutionfiles.write(f\"Search path length: {str(states)} states \\n\") #large number\n",
+        "    # solutionfiles.write(f\"Solution path length: \") # smaller num \n",
+        "    solutionfiles.write(f\"Solution Path: \\n\")\n",
+        "    for pathIndex in selectedNode.path:\n",
+        "      solutionfiles.write(f\"{pathIndex[0]} \\t {pathIndex[1]} \\t {pathIndex[2]} \\t {pathIndex[3]} \\t {pathIndex[4]} \\n\")\n",
+        "    solutionfiles.write(f\"{str(selectedNode.board)} \\n\")\n",
+        "    solutionfiles.close()\n",
+        "    return\n",
+        "\n",
+        "  def ucsSearch(self, board):\n",
+        "    \n",
+        "    startNode = Node(copy.deepcopy(board), 0)\n",
+        "    self.openList.append(startNode)\n",
+        "    startNode.ucssearch = str(startNode.pathcost) + \" 0 \" + str(startNode.pathcost) + \" \" + startNode.board.puzzle()\n",
+        "    startTime = time.time()\n",
+        "    states = 0\n",
+        "   \n",
+        "    #write to search files f(n), g(n), h(n) values of each node\n",
+        "    searchfiles = open('/content/' + 'ucs-search-' + str(self.puzzlenumber) + '.txt', 'w')\n",
+        "\n",
+        "    while(True):              \n",
+        "      self.printNoSolution(self.puzzlenumber)\n",
+        "      selectedNode  = self.openList.pop(0)\n",
+        "      searchfiles.write(selectedNode.ucssearch + \"\\n\")\n",
+        "\n",
+        "      if selectedNode.board.win():\n",
+        "        searchfiles = open('/content/' + 'ucs-sol-' + str(self.puzzlenumber) + '.txt', 'w')\n",
+        "        searchfiles.write(f\"Initial board configuration: {str(board.puzzle())} \\n\\n\")\n",
+        "        searchfiles.write(f\"{str(board)} \\n\")\n",
+        "        searchfiles.write(f\"Car fuel available: \")\n",
+        "\n",
+        "        for iter in range(len(board.cars)): \n",
+        "          searchfiles.write(f\"{str(board.cars[iter].name)}:{str(board.cars[iter].fuel)}\")\n",
+        "          if iter !=len(board.cars)-1:\n",
+        "            searchfiles.write(\", \")\n",
+        "        runtime = time.time() - startTime\n",
+        "        searchfiles.write(f\"\\nRuntime: {str(runtime)} seconds \\n\")\n",
+        "        searchfiles.write(f\"Search path length: {str(states)} states \\n\") \n",
+        "        searchfiles.write(f\"Solution path length: {str(selectedNode.pathcost)} \\n\") \n",
+        "\n",
+        "        for pathIndex in selectedNode.path:\n",
+        "          searchfiles.write(f\"{pathIndex[0]} \\t {pathIndex[1]} \\t\\t {pathIndex[2]} \\t {pathIndex[3]} \\t\\t\\t {pathIndex[4]} \\n\")\n",
+        "        searchfiles.write(f\"\\n {str(selectedNode.board)} \\n\")\n",
+        "        searchfiles.close()\n",
+        "        return\n",
+        "\n",
+        "      self.closedList.append(selectedNode)\n",
+        "      states+=1\n",
+        "\n",
+        "      for icar in selectedNode.board.cars:\n",
+        "        #this is used for the paths \n",
+        "        pathmoves = selectedNode.board.findCarMoves(icar)\n",
+        "        if len(pathmoves) > 0:\n",
+        "          print(f\"Car {icar.name} has car moves {pathmoves}\")\n",
+        "          for ipm in range(len(pathmoves)):\n",
+        "            #children of the selected node\n",
+        "            child = Node(Board(selectedNode.board.cars), selectedNode.pathcost + 1)\n",
+        "            child.parent = selectedNode\n",
+        "            child.path = copy.deepcopy(child.parent.path)\n",
+        "\n",
+        "            moves = child.board.moveCar(icar.name, pathmoves[ipm])\n",
+        "            child.path.append(moves)\n",
+        "            child.ucssearch = str(child.pathcost) + \" \" + str(child.pathcost) + \" 0 \" + moves[4]\n",
+        "\n",
+        "            if child in self.openList or child in self.closedList:\n",
+        "              continue\n",
+        "            self.openList.append(child)\n",
+        "    \n"
+      ],
+      "metadata": {
+        "id": "SwqPwPj9TGih"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "ucs = UCS()\n",
+        "\n",
+        "for puzzles in puzzleMap: \n",
+        "  currentBoard = Board(puzzles.cars)\n",
+        "  ucs.incrementState()\n",
+        "  ucs.ucsSearch(currentBoard)"
+      ],
+      "metadata": {
+        "id": "aAH7uXdOgv6H"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# GBFS"
+      ],
+      "metadata": {
+        "id": "vBFMrLKlpyHC"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class GBFS(object):\n",
+        "  def __init__(self):\n",
+        "    self.openList = []\n",
+        "    self.closedList = []\n",
+        "    self.counter = 0 \n",
+        "\n",
+        "  def incrementState(self):\n",
+        "    self.counter += 1\n",
+        "  \n",
+        "  def printNoSolution(self, h, counter):    \n",
+        "    if(len(self.openList)==0):\n",
+        "      gbfWriter.close()\n",
+        "      gbfWriter = open('/content/' + 'gbfs-h' + str(h) + '-sol-' + str(self.counter) + '.txt', 'w')\n",
+        "      gbfWriter.write(f\"Initial board configuration: {str(board.puzzle())} \\n\\n\")\n",
+        "      gbfWriter.write(f\"{str(board)} \\n\")\n",
+        "      gbfWriter.write(f\"Car fuel available: \")\n",
+        "      for iter in range(len(board.cars)): \n",
+        "        gbfWriter.write(f\"{str(board.cars[iter].name)}:{str(board.cars[iter].fuel)}\")\n",
+        "        if iter !=len(board.cars)-1:\n",
+        "          gbfWriter.write(\", \")\n",
+        "      gbfWriter.write(\"No Solution\")\n",
+        "      gbfWriter.close()\n",
+        "      return\n",
+        "\n",
+        "  def printSol(self, board, h, startTime, states, currentNode):\n",
+        "    gbfWriter = open('/content/' + 'gbfs-h' + str(h) + '-sol-' + str(self.counter) + '.txt', 'w')\n",
+        "    gbfWriter.write(f\"Initial board configuration: {str(board.puzzle())} \\n\\n\")\n",
+        "    gbfWriter.write(f\"{str(board)} \\n\")\n",
+        "    gbfWriter.write(f\"Car fuel available: \")\n",
+        "    for iter in range(len(board.cars)): \n",
+        "      gbfWriter.write(f\"{str(board.cars[iter].name)}:{str(board.cars[iter].fuel)}, \")\n",
+        "      if iter !=len(board.cars)-1:\n",
+        "        gbfWriter.write(\", \")\n",
+        "    runtime = time.time() - startTime\n",
+        "    gbfWriter.write(f\"Runtime: {str(runtime)} seconds \\n\")\n",
+        "    gbfWriter.write(f\"Search path length: {str(states)} states \\n\")\n",
+        "    gbfWriter.write(f\"Solution Path: \\n\")\n",
+        "    for pathIndex in currentNode.path:\n",
+        "      gbfWriter.write(f\"{pathIndex[0]} \\t {pathIndex[1]} \\t {pathIndex[2]} \\t {pathIndex[3]} \\t {pathIndex[4]} \\n\")\n",
+        "    gbfWriter.write(f\"{str(currentNode.board)} \\n\")\n",
+        "    gbfWriter.close()\n",
+        "    return\n",
+        "\n",
+        "  def compareCost(self, childNode, openList, closedList):\n",
+        "    if childNode in self.openList:\n",
+        "      for nodeCheck in self.openList:\n",
+        "        if nodeCheck == childNode and nodeCheck.cost > childNode.cost:\n",
+        "          self.openList.remove(nodeCheck)\n",
+        "          bisect.insort(self.openList, childNode)\n",
+        "          break\n",
+        "        continue\n",
+        "    elif childNode in self.closedList:\n",
+        "      for nodeCheck in self.closedList:\n",
+        "        if nodeCheck == childNode and nodeCheck.cost > childNode.cost:\n",
+        "          self.closedList.remove(nodeCheck)\n",
+        "          bisect.insort(self.openList, childNode)\n",
+        "          break\n",
+        "        continue\n",
+        "    else:\n",
+        "      bisect.insort(self.openList, childNode) \n",
+        "\n",
+        "  def gbfSearch(self, board, h):\n",
+        "    startNode = HNode(copy.deepcopy(board), 0, -1)\n",
+        "    self.openList.append(startNode)\n",
+        "    startNode.setHeuristic(h)\n",
+        "    startNode.startNode = str(startNode.cost) + \" 0 \" + str(startNode.cost) + \" \" + startNode.board.puzzle()\n",
+        "    startTime = time.time()\n",
+        "    states = 0\n",
+        "\n",
+        "    gbfWriter = open('/content/' + 'gbfs-h' + str(h) + '-search-' + str(self.counter) + '.txt', 'w')\n",
+        "      \n",
+        "    while(True):              \n",
+        "      self.printNoSolution(h, self.counter)\n",
+        "      currentNode = self.openList.pop(0)\n",
+        "      currentNode.setCost(currentNode.parentCost + 1)\n",
+        "      gbfWriter.write(currentNode.search + \"\\n\")\n",
+        "\n",
+        "      if currentNode.board.win():\n",
+        "        gbfWriter = open('/content/' + 'gbfs-h' + str(h) + '-sol-' + str(self.counter) + '.txt', 'w')\n",
+        "        gbfWriter.write(f\"Initial board configuration: {str(board.puzzle())} \\n\\n\")\n",
+        "        gbfWriter.write(f\"{str(board)} \\n\")\n",
+        "        gbfWriter.write(f\"Car fuel available: \")\n",
+        "\n",
+        "        for iter in range(len(board.cars)): \n",
+        "          gbfWriter.write(f\"{str(board.cars[iter].name)}:{str(board.cars[iter].fuel)}\")\n",
+        "          if iter !=len(board.cars)-1:\n",
+        "            gbfWriter.write(\", \")\n",
+        "        runtime = time.time() - startTime\n",
+        "        gbfWriter.write(f\"\\nRuntime: {str(runtime)} seconds \\n\")\n",
+        "        gbfWriter.write(f\"Search path length: {str(states)} states \\n\") \n",
+        "        gbfWriter.write(f\"Solution path length: {str(currentNode.cost)} \\n\") \n",
+        "\n",
+        "        for pathIndex in currentNode.path:\n",
+        "          gbfWriter.write(f\"{pathIndex[0]} \\t {pathIndex[1]} \\t\\t {pathIndex[2]} \\t {pathIndex[3]} \\t\\t\\t {pathIndex[4]} \\n\")\n",
+        "        gbfWriter.write(f\"\\n {str(currentNode.board)} \\n\")\n",
+        "        gbfWriter.close()\n",
+        "        return\n",
+        "\n",
+        "      self.closedList.append(currentNode)\n",
+        "      states+=1\n",
+        "        \n",
+        "      for car in currentNode.board.cars:\n",
+        "        pathsChecked = currentNode.board.findCarMoves(car)    \n",
+        "        if len(pathsChecked) > 0:             \n",
+        "          for iter in range(len(pathsChecked)):\n",
+        "            childNode = HNode(Board(currentNode.board.cars), 0, currentNode.cost)   \n",
+        "            childNode.parentNode = currentNode\n",
+        "            childNode.path = copy.deepcopy(childNode.parentNode.path)\n",
+        "                \n",
+        "            displacement = childNode.board.moveCar(car.name, pathsChecked[iter])\n",
+        "            childNode.path.append(displacement)\n",
+        "            combinedCost = childNode.cost\n",
+        "            childNode.setHeuristic(h)\n",
+        "            childNode.search = str(childNode.cost) + \" \" + str(combinedCost) + \" \" + str(childNode.cost - combinedCost) + \" \" + displacement[4] \n",
+        "                    \n",
+        "            if childNode in self.openList or childNode in self.closedList:\n",
+        "              continue\n",
+        "            bisect.insort(self.openList, childNode)      \n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "Kt0CkK3Lp7uL"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "gbfs = GBFS()\n",
+        "\n",
+        "for puzzles in puzzleMap: \n",
+        "  currentBoard = Board(puzzles.cars)\n",
+        "  gbfs.incrementState()\n",
+        "  for i in range(1,5):\n",
+        "    gbfs.gbfSearch(currentBoard, i)"
+      ],
+      "metadata": {
+        "id": "10PsEFwebwaf"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# A/A*"
+      ],
+      "metadata": {
+        "id": "XKT_YF-YYrIt"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "class AAStar(object):\n",
+        "  def __init__(self):\n",
+        "    self.openList = []\n",
+        "    self.closedList = []\n",
+        "    self.puzzleCount = 0\n",
+        "        \n",
+        "  def incrementState(self):\n",
+        "    self.puzzleCount += 1\n",
+        "  \n",
+        "  def printNoSol(self, board, h):\n",
+        "    solaaStar = open('/content/' + 'a-h' + str(h) + '-sol-' + str(self.counter) + '.txt', 'w')\n",
+        "    solaaStar.write(f\"Initial board configuration: {str(board.puzzle())} \\n\\n\")\n",
+        "    solaaStar.write(f\"{str(board)} \\n\")\n",
+        "    solaaStar.write(f\"Car fuel available: \")\n",
+        "    for iter in range(len(board.cars)): \n",
+        "      solaaStar.write(f\"{str(board.cars[iter].name)}:{str(board.cars[iter].fuel)}, \")\n",
+        "    solaaStar.write(\"No Solution\")\n",
+        "    solaaStar.close()\n",
+        "    return\n",
+        "\n",
+        "  def printSol(self, board, h, startTime, states, currentNode):\n",
+        "    solaaStar = open('/content/' + 'a-h' + str(h) + '-sol-' + str(self.counter) + '.txt', 'w')\n",
+        "    solaaStar.write(f\"Initial board configuration: {str(board.puzzle())} \\n\\n\")\n",
+        "    solaaStar.write(f\"{str(board)} \\n\")\n",
+        "    solaaStar.write(f\"Car fuel available: \")\n",
+        "    for iter in range(len(board.cars)): \n",
+        "      solaaStar.write(f\"{str(board.cars[iter].name)}:{str(board.cars[iter].fuel)}, \")\n",
+        "    runtime = time.time() - startTime\n",
+        "    solaaStar.write(f\"Runtime: {str(runtime)} seconds \\n\")\n",
+        "    solaaStar.write(f\"Search path length: {str(states)} states \\n\")\n",
+        "    solaaStar.write(f\"Solution Path: \\n\")\n",
+        "    for pathIndex in currentNode.path:\n",
+        "      solaaStar.write(f\"{pathIndex[0]} \\t {pathIndex[1]} \\t {pathIndex[2]} \\t {pathIndex[3]} \\t {pathIndex[4]} \\n\")\n",
+        "    solaaStar.write(f\"{str(currentNode.board)} \\n\")\n",
+        "    solaaStar.close()\n",
+        "    return\n",
+        "\n",
+        "  def compareCost(self, childNode, openList, closedList):\n",
+        "    if childNode in self.openList:\n",
+        "      for nodeCheck in self.openList:\n",
+        "        if nodeCheck == childNode and nodeCheck.cost > childNode.cost:\n",
+        "          self.openList.remove(nodeCheck)\n",
+        "          bisect.insort(self.openList, childNode)\n",
+        "          break\n",
+        "        continue\n",
+        "    elif childNode in self.closedList:\n",
+        "      for nodeCheck in self.closedList:\n",
+        "        if nodeCheck == childNode and nodeCheck.cost > childNode.cost:\n",
+        "          self.closedList.remove(nodeCheck)\n",
+        "          bisect.insort(self.openList, childNode)\n",
+        "          break\n",
+        "        continue\n",
+        "    else:\n",
+        "      bisect.insort(self.openList, childNode) \n",
+        "            \n",
+        "  def searchAAStar(self, board, h): \n",
+        "    startNode = HNode(copy.deepcopy(board), 0, -1)\n",
+        "    self.openList.append(startNode)\n",
+        "        \n",
+        "    startNode.setHeuristic(h)\n",
+        "    startNode.searchAAStar = str(startNode.cost) + \" 0 \" + str(startNode.cost) + \" \" + startNode.board.puzzle()\n",
+        "        \n",
+        "    startTime = time.time()\n",
+        "    states = 0\n",
+        "        \n",
+        "    searchOutput = open(\"/content/\" + \"a-h\" + str(h) + \"-search-\" + str(self.puzzleCount) + \".txt\", \"w\")\n",
+        "    while(True):                   \n",
+        "      if not self.openList:\n",
+        "        searchOutput.close()\n",
+        "        searchOutput = open('/content/' + 'a-h' + str(h) + '-sol-' + str(self.puzzleCount) + '.txt', 'w')\n",
+        "\n",
+        "        searchOutput.write(f\"Initial board configuration: {str(board.puzzle())} \\n\\n\")\n",
+        "        searchOutput.write(f\"{str(board)} \\n\")\n",
+        "\n",
+        "        searchOutput.write(f\"Car fuel available: \")\n",
+        "        for iter in range(len(board.cars)): \n",
+        "          searchOutput.write(f\"{str(board.cars[iter].name)}:{str(board.cars[iter].fuel)}\")\n",
+        "          if iter != len(board.cars)-1:\n",
+        "            solOutput.write(\", \")\n",
+        "\n",
+        "          searchOutput.write(\"No Solution\")\n",
+        "          searchOutput.close()\n",
+        "          return\n",
+        "      \n",
+        "      currentNode = self.openList.pop(0)\n",
+        "      currentNode.setCost(currentNode.parentCost + 1)\n",
+        "      searchOutput.write(currentNode.searchAAStar + \"\\n\")\n",
+        "        \n",
+        "      if currentNode.board.win():\n",
+        "        solOutput = open('/content/' + 'a-h' + str(h) + '-sol-' + str(self.puzzleCount) + '.txt', 'w')\n",
+        "\n",
+        "        solOutput.write(f\"Initial board configuration: {str(board.puzzle())} \\n\\n\")\n",
+        "        solOutput.write(f\"{str(board)} \\n\")\n",
+        "\n",
+        "        solOutput.write(f\"Car fuel available: \")\n",
+        "        for iter in range(len(board.cars)): \n",
+        "          solOutput.write(f\"{str(board.cars[iter].name)}:{str(board.cars[iter].fuel)}\")\n",
+        "          if iter != len(board.cars)-1:\n",
+        "            solOutput.write(\", \")\n",
+        "\n",
+        "        runTime = time.time() - startTime\n",
+        "        solOutput.write(f\"\\nRuntime: {str(runTime)} seconds \\n\")\n",
+        "\n",
+        "        solOutput.write(f\"Search path length: {str(states)} states \\n\")\n",
+        "\n",
+        "        solOutput.write(f\"Solution path length: {str(currentNode.cost)} \\n\")  \n",
+        "\n",
+        "        solOutput.write(f\"Solution Path: \\n\")\n",
+        "        for pathIndex in currentNode.path:\n",
+        "          solOutput.write(f\"{pathIndex[0]} \\t {pathIndex[1]} \\t\\t {pathIndex[2]} \\t {pathIndex[3]} \\t\\t\\t {pathIndex[4]} \\n\")\n",
+        "        solOutput.write(f\"\\n {str(currentNode.board)} \\n\")\n",
+        "                \n",
+        "        solOutput.close()\n",
+        "        return\n",
+        "\n",
+        "      self.closedList.append(currentNode)\n",
+        "      states += 1\n",
+        "          \n",
+        "      for car in currentNode.board.cars:\n",
+        "        pathsChecked = currentNode.board.findCarMoves(car)\n",
+        "        if len (pathsChecked) > 0:\n",
+        "          for iter in range (len(pathsChecked)):\n",
+        "            childNode = HNode(Board(currentNode.board.cars), currentNode.cost+1, currentNode.cost)\n",
+        "            childNode.parentNode = currentNode\n",
+        "            childNode.path = copy.deepcopy(childNode.parentNode.path)\n",
+        "            displacement = childNode.board.moveCar(car.name, pathsChecked[iter])\n",
+        "            childNode.path.append(displacement)\n",
+        "            combinedCost = childNode.cost\n",
+        "            childNode.setHeuristic(h)\n",
+        "            childNode.searchAAStar = str(childNode.cost) + \" 0 \" + str(childNode.cost) + \" \" + childNode.board.puzzle()\n",
+        "                  \n",
+        "            if childNode in self.openList:\n",
+        "              for nodeCheck in self.openList:\n",
+        "                if nodeCheck == childNode and nodeCheck.cost > childNode.cost:\n",
+        "                  self.openList.remove(nodeCheck)\n",
+        "                  bisect.insort(self.openList, childNode)\n",
+        "                  break\n",
+        "                continue\n",
+        "            elif childNode in self.closedList:\n",
+        "              for nodeCheck in self.closedList:\n",
+        "                if nodeCheck == childNode and nodeCheck.cost > childNode.cost:\n",
+        "                  self.closedList.remove(nodeCheck)\n",
+        "                  bisect.insort(self.openList, childNode)\n",
+        "                  break\n",
+        "                continue\n",
+        "            else:\n",
+        "              bisect.insort(self.openList, childNode) "
+      ],
+      "metadata": {
+        "id": "A7nT6k3hYqEd"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "aaStar = AAStar()\n",
+        "\n",
+        "for puzzles in puzzleMap: \n",
+        "  currentBoard = Board(puzzles.cars)\n",
+        "  aaStar.incrementState()\n",
+        "  for i in range(1,5):\n",
+        "    aaStar.searchAAStar(currentBoard, i)"
+      ],
+      "metadata": {
+        "id": "LE5aAPiKafql"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def generateResults(Algo):\n",
+        "\n",
+        "  if Algo == 1:\n",
+        "    algoType = UCS()\n",
+        "  if Algo == 2:\n",
+        "    algoType = GBFS()\n",
+        "  if Algo == 3:\n",
+        "    algoType = AAStar()\n",
+        "\n",
+        "  for puzzles in puzzleMap: \n",
+        "    currentBoard = Board(puzzles.cars)\n",
+        "    algoType.incrementState()\n",
+        "    for i in range(1,5):\n",
+        "      if algoType == 1:\n",
+        "        algoType.gbfSearch(currentBoard, i)\n",
+        "      if algoType == 2:\n",
+        "        algoType.gbfSearch(currentBoard, i)\n",
+        "      if algoType == 3:\n",
+        "        algoType.searchAAStar(currentBoard, i)\n",
+        "\n",
+        "# generateResults(1)\n",
+        "generateResults(2)\n",
+        "generateResults(3)"
+      ],
+      "metadata": {
+        "id": "7qigfkOKXuxF"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# LIST OF UNUSED FUCTIONS ❗ 💯"
+      ],
+      "metadata": {
+        "id": "EEhu5OWVw7s_"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "This function returns a list of cars with their FUEL from the list of puzzles"
+      ],
+      "metadata": {
+        "id": "giTjulOkenyM"
+      }
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "tH6jHxmff82q"
+      },
+      "outputs": [],
+      "source": [
+        "# this should become a PuzzleParser Class \n",
+        "def __create_puzzle_list():\n",
+        "    input = open('/content/sample-input-2.txt', 'r')\n",
+        "    puzzles = []\n",
+        "    for line in input.readlines():\n",
+        "      if not line.startswith('#') and line.strip():\n",
+        "          puzzles.append(line.strip()) \n",
+        "    input.close()\n",
+        "    return puzzles\n",
+        "  \n",
+        "  # seperates the fuel from the board \n",
+        "def __get_fuel():\n",
+        "    # a list of cars temp\n",
+        "    carsTemp = []\n",
+        "    # a list of car objects\n",
+        "    cars = []\n",
+        "    for x in puzzles:\n",
+        "      puzzle_str = x.split(\" \")\n",
+        "      # if only 0 then theres only a puzzle, default 100\n",
+        "      # else fuel assigned\n",
+        "      if len(puzzle_str) > 0:\n",
+        "        for i in range (1, len(puzzle_str)):\n",
+        "          carsTemp.append(puzzle_str[i])\n",
+        "          carSample = carsTemp[i-1]\n",
+        "          carSampleLetter = carSample[0]\n",
+        "          carSampleFuel = carSample[1]\n",
+        "          cars.append(Car (name = carSampleLetter, fuel = carSampleFuel))\n",
+        "        return cars"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "puzzles = __create_puzzle_list();"
+      ],
+      "metadata": {
+        "id": "Tm28fwcZcgs4"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "a = __get_fuel()\n",
+        "print(a[0].name)"
+      ],
+      "metadata": {
+        "id": "VUEO79MRYTLI"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Writes to a file the desired layout with the fuel and car name"
+      ],
+      "metadata": {
+        "id": "8Z2YeaLue85n"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# def __output():\n",
+        "output = open(\"/content/test.txt\", \"w\")\n",
+        "for x in puzzles:\n",
+        "  output.write(f\"Initial board configuration: {x} \\n\\n\")\n",
+        "  splitted_line = x.split(\" \")\n",
+        "  puzzlestr = splitted_line[0]\n",
+        "  count = 0\n",
+        "  for i in range(len(puzzlestr)):\n",
+        "    output.write(puzzlestr[i] + \" \")\n",
+        "    count += 1\n",
+        "    if count == 6:\n",
+        "      output.write(\"\\n\")\n",
+        "      count = 0\n",
+        "  output.write(\"\\n\")\n",
+        "  output.write(\"Car fuel available: \")\n",
+        "  for f in a: \n",
+        "    output.write(f\"{f.name}:{f.fuel}, \")"
+      ],
+      "metadata": {
+        "id": "4C12k-oH_2SF"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "This takes in a puzzle string and counts the occurrences of the char to make the SIZE of the car"
+      ],
+      "metadata": {
+        "id": "t_JjaeqRfFHh"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def __checkSize(puzzle): \n",
+        "  cars = []\n",
+        "  # Test case\n",
+        "  # input_string = \"BBIJ....IJCC..IAAMGDDK.MGH.KL.GHFFL.\"\n",
+        "  mySet = set(puzzle)\n",
+        "  countOfChars = dict()\n",
+        "  for element in mySet:\n",
+        "      countOfChar = puzzle.count(element)\n",
+        "      countOfChars[element] = countOfChar\n",
+        "      if (element == \".\"):\n",
+        "        continue;\n",
+        "      else:  \n",
+        "        cars.append(Car (name = element, size = countOfChar))\n",
+        "\n",
+        "  counter = 0;\n",
+        "  for x in cars:\n",
+        "    print (cars[counter].name + str(cars[counter].size) ) \n",
+        "    counter += 1;  \n",
+        "  return cars"
+      ],
+      "metadata": {
+        "id": "neLf9MwsNokN"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Checks if a car is setup HORIZONTALLY"
+      ],
+      "metadata": {
+        "id": "fCbVyOmbfruM"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def __checkHorizontal(puzzle): \n",
+        "  uniqueHorizontal = []\n",
+        "  for curr,next in zip(puzzle, puzzle[1:]): \n",
+        "    if (curr == \".\"):\n",
+        "      continue;\n",
+        "    if (curr == next) :\n",
+        "      uniqueHorizontal.append(curr)\n",
+        "    else:\n",
+        "      continue;\n",
+        "  finalHorizontal = set(uniqueHorizontal)    \n",
+        "  return finalHorizontal"
+      ],
+      "metadata": {
+        "id": "h1Ij1T9-Trof"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "This is the Check for Horizontal and Size Functions"
+      ],
+      "metadata": {
+        "id": "0bBVF9wVhyF2"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "newString = puzzles[0]\n",
+        "newString = newString[:36]\n",
+        "returnedHorizontalCar = __checkHorizontal(newString)\n",
+        "print(returnedHorizontalCar)\n",
+        "\n",
+        "# print('\\n' + 'this is the checksize function')\n",
+        "returnedCarSize = __checkSize(newString)\n",
+        "print(returnedCarSize)"
+      ],
+      "metadata": {
+        "id": "0oWZLHZfYzXi"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "TO REVISIT "
+      ],
+      "metadata": {
+        "id": "biiMZj2xzR9L"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#Combining Both lists\n",
+        "counter2=0\n",
+        "for (currentCar, horizontalCar) in zip(returnedCarSize, returnedHorizontalCar):\n",
+        "\n",
+        "  thisIsTheCar = returnedCarSize[counter2].name\n",
+        "  if ( thisIsTheCar != horizontalCar):\n",
+        "    print(\"this is not a match\" + thisIsTheCar + horizontalCar)\n",
+        "  if ( thisIsTheCar == horizontalCar):\n",
+        "    returnedCarSize[counter2].dir = \"h\"\n",
+        "    counter2+=1  \n",
+        "  else:\n",
+        "    counter2+=1\n",
+        "\n",
+        "\n",
+        "counter = 0;\n",
+        "for x in returnedCarSize:\n",
+        "    print (returnedCarSize[counter].name + str(returnedCarSize[counter].size) + returnedCarSize[counter].dir) \n",
+        "    counter += 1;  \n",
+        "# print(returnedCarSize[0].dir) \n"
+      ],
+      "metadata": {
+        "id": "0n61m0e0k4ub"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Slices the puzzle string into 36 chars (6x6) passes into ndarray "
+      ],
+      "metadata": {
+        "id": "0UFLD0kdh4u7"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "newString = puzzles[0]\n",
+        "newString = newString[:36]\n",
+        "print(newString)\n",
+        "\n",
+        "test = np.array(list(newString)).reshape(6,6)\n",
+        "print(test)\n",
+        "print(test[0][4])\n",
+        "print(type(test))\n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "J2NrG7vbCCDT",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "38484840-30f3-4031-81cc-782165b64484"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "BBB..MCCDD.MAAKL.MJ.KLEEJ.GG..JHHHII\n",
+            "[['B' 'B' 'B' '.' '.' 'M']\n",
+            " ['C' 'C' 'D' 'D' '.' 'M']\n",
+            " ['A' 'A' 'K' 'L' '.' 'M']\n",
+            " ['J' '.' 'K' 'L' 'E' 'E']\n",
+            " ['J' '.' 'G' 'G' '.' '.']\n",
+            " ['J' 'H' 'H' 'H' 'I' 'I']]\n",
+            ".\n",
+            "<class 'numpy.ndarray'>\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "board1 = Board(board = \"BBB..MCCDD.MAAKL.MJ.KLEEJ.GG..JHHHII\")\n",
+        "print(board1.board)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "anAYbii8Pl0t",
+        "outputId": "0e733093-8c22-48e0-efae-8ca9644b8330"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "BBB..MCCDD.MAAKL.MJ.KLEEJ.GG..JHHHII\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "board2 = Board(board = puzzles[0])\n",
+        "print(board2.board)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "HTUItGaKgSTv",
+        "outputId": "a9c86a68-db46-4acb-f9c1-b31f6f11c920"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "BBIJ....IJCC..IAAMGDDK.MGH.KL.GHFFL.\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# def __play_rush_hour_ucs():\n",
+        "#   # returns list of puzzles \n",
+        "#   puzzles = __create_puzzle_list();\n",
+        "#   for index, input in enumerate(puzzles):\n",
+        "#     __puzzle_output_ucs(input, f\"ucs-sol-{index+1}.txt\")\n"
+      ],
+      "metadata": {
+        "id": "AAWPW9sfrCos"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# NOT GOING TO BE USED \n",
+        "# Makes a DICT of occurrences and chars\n",
+        "test = \"BBIJ....IJCC..IAAMGDDK.MGH.KL.GHFFL.\"\n",
+        "\n",
+        "letterDict = dict()\n",
+        "\n",
+        "# print(letterDict)\n",
+        "\n",
+        "letterList = []\n",
+        "\n",
+        "for x in test:\n",
+        "  occurences = test.count(x)\n",
+        "  # print(occurences)\n",
+        "  if (x == \".\") or (x in letterList):\n",
+        "    continue; \n",
+        "  else:\n",
+        "    letterList.append(f\"{x} + {occurences}\")\n",
+        "    \n",
+        "finalList = set(letterList)\n",
+        "print(finalList)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "UonrAMEAIwkK",
+        "outputId": "001ca36e-fcd8-4904-d009-01713194f08b"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "{'G + 3', 'A + 2', 'D + 2', 'I + 3', 'C + 2', 'H + 2', 'F + 2', 'B + 2', 'J + 2', 'K + 2', 'M + 2', 'L + 2'}\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
